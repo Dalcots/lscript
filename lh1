@@ -5,7 +5,8 @@ export WLANNM
 function defaults_lh1
 {
 #path for lscript
-	LPATH="/root/lscript"
+	LPATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+	[[ -d "/root/lscript" && -f "/root/lscript/lh1" ]] && LPATH="/root/lscript"
 	export LPATH
 #path for keyboard shortcuts
 	KSPATH=""$LPATH"/ks"
@@ -119,7 +120,7 @@ then
 	then
 		rm $HANDCAP
 	fi
-	gnome-terminal -q --geometry 70x10+0+0 -- lh2
+	gnome-terminal -- bash -c "bash \"$LPATH/lh2\""
 	HANDFORDEAUTH="/root/handshakes/$HANDF-01.csv"
 	export HANDFORDEAUTH
 	airodump-ng --bssid $TARGB -c $TARGC -w /root/handshakes/$HANDF $WLANNM # & jobs -p > /root/lscript/dpidd.txt
@@ -149,7 +150,7 @@ then
 		rm /root/lscript/dpid*.txt
 	fi
 	validhandshake
-	exec bash "$0"
+	exec bash "$LPATH/l"
 else
 	if [[ -f /root/handshakes/deauth-01.csv || -f /root/handshakes/deauth-01.cap || -f /root/handshakes/deauth-01.kismet.csv || -f /root/handshakes/deauth-01.kismet.netxml ]]
 	then
@@ -157,7 +158,7 @@ else
 	fi
 	HANDF="deauth"
 	HANDFORDEAUTH="/root/handshakes/deauth-01.csv"
-	gnome-terminal -q --geometry 70x10+0+0 -- lh2
+	gnome-terminal -- bash -c "bash \"$LPATH/lh2\""
 	airodump-ng --bssid $TARGB -c $TARGC -w /root/handshakes/$HANDF $WLANNM
 	if [[ -f "$LPATH"/dpid.txt ]]
 	then
@@ -173,7 +174,7 @@ else
 	if [[ "$SCF" = "n" ]]
 	then
 		clear
-		exec bash "$0"
+		exec bash "$LPATH/l"
 	else
 		while true
 		do
@@ -195,7 +196,7 @@ else
 		then
 			rm $HANDFFP
 		fi
-		gnome-terminal -q --geometry 70x10+0+0 -- lh2
+		gnome-terminal -- bash -c "bash \"$LPATH/lh2\""
 		airodump-ng --bssid $TARGB -c $TARGC -w /root/handshakes/$HANDF $WLANNM
 		if [[ -f "$LPATH"/dpid.txt ]]
 		then
@@ -211,7 +212,7 @@ else
 			rm /root/lscript/dpid*.txt
 		fi
 		validhandshake
-		exec bash "$0"
+		exec bash "$LPATH/l"
 	fi
 fi
 }
@@ -386,10 +387,10 @@ function capture_again
 			read CAGAIN
 			if [[ ! "$CAGAIN" = "n" ]]
 			then
-				gnome-terminal -q --geometry 70x10+0+0 -- lh2
+				gnome-terminal -- bash -c "bash \"$LPATH/lh2\""
 				airodump-ng --bssid $TARGB -c $TARGC -w /root/handshakes/$HANDF $WLANNM
 				validhandshake
-				exec bash "$0"
+				exec bash "$LPATH/l"
 			fi
 }
 function ap_sort_and_choose
@@ -731,7 +732,7 @@ function aircrack_handshakejust
 			echo -e "File $HANDFK does not exist"
 			sleep 2
 			clear
-			exec bash "$0"
+			exec bash "$LPATH/l"
 		fi
 		cd /root/wordlists
 		ls | sort
@@ -748,7 +749,7 @@ function aircrack_handshakejust
 			echo -e "File $WORDF does not exist"
 			sleep 2
 			clear
-			exec bash "$0"
+			exec bash "$LPATH/l"
 		fi
 	else
 		cd /root/wordlists
@@ -765,7 +766,7 @@ function aircrack_handshakejust
 			echo -e "File $WORDF does not exist"
 			sleep 2
 			clear
-			exec bash "$0"
+			exec bash "$LPATH/l"
 		fi
 	fi
 	clear
@@ -952,7 +953,7 @@ then
 	rm -f /root/handshakes/*.netxml
 	sleep 0.2
 	clear
-	exec bash "$0"
+	exec bash "$LPATH/l"
 elif [[ "$AA" = "0" ]]
 then
 	exit

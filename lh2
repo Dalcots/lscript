@@ -32,7 +32,8 @@ done
 function defaults_lh2
 {
 #path for lscript
-	LPATH="/root/lscript"
+	LPATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+	[[ -d "/root/lscript" && -f "/root/lscript/lh1" ]] && LPATH="/root/lscript"
 	export LPATH
 #yellow start 
 	YS="\e[1;33m"

@@ -4,7 +4,7 @@ printf '\033]2;INSTALLER\a'
 echo -e "Press \e[1;33many key\e[0m to install the script..."
 read -n 1
 clear
-apt-get -y install gnome-terminal
+apt -y install gnome-terminal
 clear
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 if [[ "$DIR" != "/root/lscript" ]]
@@ -18,7 +18,7 @@ then
 	mkdir /root/lscript
 	cp -r "$DIR"/* /root/lscript
 	chmod +x /root/lscript/install.sh
-	gnome-terminal -- "bash /root/lscript/install.sh"
+	gnome-terminal -- bash /root/lscript/install.sh
 fi
 echo -e "Installing lscript..."
 sleep 1
@@ -44,6 +44,7 @@ sleep 1
 mkdir /bin/lscript
 cd /root/lscript
 cp /root/lscript/l /bin/lscript
+cp /root/lscript/l /bin/lscript/lzsc
 cp /root/lscript/lh1 /bin/lscript
 cp /root/lscript/lh2 /bin/lscript
 cp /root/lscript/lh3 /bin/lscript
@@ -53,9 +54,13 @@ cp /root/lscript/lh41 /bin/lscript
 cp /root/lscript/lh21 /bin/lscript
 cp /root/lscript/lh42 /bin/lscript
 cp /root/lscript/lh43 /bin/lscript
+mkdir -p /bin/lscript/ls
+cp /root/lscript/ls/l131.sh /bin/lscript/ls/
+cp /root/lscript/ls/l132.sh /bin/lscript/ls/
+cp /root/lscript/ls/l133.sh /bin/lscript/ls/
 clear
 #required for gui
-apt-get -y install ncurses-dev
+apt -y install libncurses-dev
 clear
 if [[ ! -d /root/handshakes ]]
 then
@@ -96,7 +101,11 @@ then
 	sleep 1
 	export PATH=/bin/lscript:$PATH
 	sleep 1
-	echo "export PATH=/bin/lscript:$PATH" >> ~/.bashrc
+	# Write to root .bashrc, current user .bashrc, and /etc/profile.d for all shells
+echo 'export PATH=/bin/lscript:$PATH' >> /root/.bashrc
+echo 'export PATH=/bin/lscript:$PATH' >> ~/.bashrc
+echo 'export PATH=/bin/lscript:$PATH' > /etc/profile.d/lscript.sh
+chmod +x /etc/profile.d/lscript.sh
 	sleep 1
 	clear
 	break
@@ -106,7 +115,7 @@ clear
 echo -e "DONE"
 sleep 1
 clear
-echo -e "Open a NEW terminal and type 'l' to launch the script"
+echo -e "Open a NEW terminal and type 'lzsc' (or 'l') to launch the script"
 sleep  4
-gnome-terminal -- l
+gnome-terminal -- bash -c "source ~/.bashrc; lzsc; exec bash"
 exit

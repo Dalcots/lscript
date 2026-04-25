@@ -1,4 +1,211 @@
 #! /bin/bash
+# ──────────────────────────────────────────────────────────
+#  LSCRIPT PORTABILITY LAYER  (injected by v3.1 patcher)
+# ──────────────────────────────────────────────────────────
+
+# 1. LPATH – resolve to the directory the script lives in,
+#    not a hardcoded /root/lscript.
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+if [[ -d "/root/lscript" ]]; then
+    LPATH="/root/lscript"
+else
+    LPATH="$SCRIPT_DIR"
+fi
+export LPATH
+
+# 2. TERMINAL – pick the first available GUI terminal emulator.
+function detect_terminal {
+    local candidates=(gnome-terminal xfce4-terminal mate-terminal lxterminal
+                      konsole tilix terminator alacritty xterm)
+    for t in "${candidates[@]}"; do
+        if command -v "$t" &>/dev/null; then
+            echo "$t"
+            return 0
+        fi
+    done
+    echo "xterm"
+}
+TERM_EMU="$(detect_terminal)"
+export TERM_EMU
+
+function open_term {
+    local title="${1:-lscript}"
+    local cmd="${2}"
+    case "$TERM_EMU" in
+        gnome-terminal)   gnome-terminal --title=${title} -- bash -c "$cmd; exec bash" & disown ;;
+        xfce4-terminal)   xfce4-terminal --title=${title} -e "bash -c '$cmd; exec bash'" & disown ;;
+        mate-terminal)    mate-terminal --title=${title} -e "bash -c '$cmd; exec bash'" & disown ;;
+        lxterminal)       lxterminal --title=${title} -e "bash -c '$cmd; exec bash'" & disown ;;
+        konsole)          konsole --title ${title} -e bash -c "$cmd; exec bash" & disown ;;
+        *)                xterm -T ${title} -hold -e bash -c "$cmd; exec bash" & disown ;;
+    esac
+}
+export -f open_term
+
+# 3. PACKAGE MANAGER
+function detect_pkg_manager {
+    if command -v apt &>/dev/null; then echo "apt"
+    elif command -v pacman &>/dev/null; then echo "pacman"
+    else echo "unknown"; fi
+}
+PKG_MGR="$(detect_pkg_manager)"
+export PKG_MGR
+
+function pkg_install {
+    local p
+    for p in "$@"; do
+        local arch_pkg
+        case "$p" in
+            aircrack-ng)            arch_pkg="aircrack-ng" ;;
+            mdk4|mdk3)              arch_pkg="mdk4" ;;
+            nmap)                   arch_pkg="nmap" ;;
+            net-tools)              arch_pkg="net-tools" ;;
+            macchanger)             arch_pkg="macchanger" ;;
+            dsniff)                 arch_pkg="dsniff" ;;
+            arp-scan)               arch_pkg="arp-scan" ;;
+            netdiscover)            arch_pkg="netdiscover" ;;
+            sqlmap)                 arch_pkg="sqlmap" ;;
+            python3-pip)            arch_pkg="python3-pip" ;;
+            python3-dev)            arch_pkg="python3" ;;
+            liblibncurses-dev)         arch_pkg="ncurses" ;;
+            libpcap0.8-dev)         arch_pkg="libpcap" ;;
+            libssl-dev)             arch_pkg="openssl" ;;
+            libffi-dev)             arch_pkg="libffi" ;;
+            golang-go)              arch_pkg="go" ;;
+            upx-ucl)                arch_pkg="upx" ;;
+            beef-xss)               arch_pkg="beef" ;;
+            metasploit-framework)   arch_pkg="metasploit" ;;
+            shellter)               arch_pkg="shellter" ;;
+            masscan)                arch_pkg="masscan" ;;
+            mingw-w64)              arch_pkg="mingw-w64-gcc" ;;
+            php-curl)               arch_pkg="php" ;;
+            libxml2-dev)            arch_pkg="libxml2" ;;
+            libxslt1-dev)           arch_pkg="libxslt" ;;
+            libcapstone-dev)        arch_pkg="capstone" ;;
+            libnetfilter-queue-dev) arch_pkg="libnetfilter_queue" ;;
+            *)                      arch_pkg="$p" ;;
+        esac
+        case "$PKG_MGR" in
+            apt)    apt install -y "$p" ;;
+            pacman) pacman -S --noconfirm --needed "$arch_pkg" ;;
+            *)      echo "Install manually: $p" ;;
+        esac
+    done
+}
+export -f pkg_install
+
+function pkg_update {
+    case "$PKG_MGR" in
+        apt)    apt update ;;
+        pacman) pacman -Sy ;;
+    esac
+}
+export -f pkg_update
+
+# 4. WIRELESS INTERFACE AUTO-DETECTION
+function list_wifi_interfaces {
+    local ifaces=()
+    if command -v iw &>/dev/null; then
+        while IFS= read -r line; do
+            ifaces+=("$line")
+        done < <(iw dev 2>/dev/null | awk '/Interface/{print $2}')
+    fi
+    if [[ ${#ifaces[@]} -eq 0 ]]; then
+        for d in /sys/class/net/*/wireless; do
+            [[ -d ${d} ]] && ifaces+=("$(basename "$(dirname ${d})")")
+        done
+    fi
+    printf '%s\n' "${ifaces[@]}"
+}
+export -f list_wifi_interfaces
+
+function pick_wifi_interface {
+    if [[ -f "$LPATH/wlan.txt" ]]; then
+        local saved; saved=$(cat "$LPATH/wlan.txt")
+        if ip link show "$saved" &>/dev/null; then
+            MANAGED="$saved"
+            [[ -f "$LPATH/wlanmon.txt" ]] && MONITOR=$(cat "$LPATH/wlanmon.txt") || MONITOR="${MANAGED}mon"
+            WLANN=${MANAGED}; WLANNM="$MONITOR"
+            export MANAGED MONITOR WLANN WLANNM
+            return 0
+        fi
+    fi
+    mapfile -t WIFI_IFACES < <(list_wifi_interfaces)
+    if [[ ${#WIFI_IFACES[@]} -eq 0 ]]; then
+        echo "No wireless interfaces detected. Enter interface name (e.g. $WLANN):"
+        read -r MANAGED; [[ -z ${MANAGED} ]] && MANAGED="$WLANN"
+        MONITOR="${MANAGED}mon"
+    elif [[ ${#WIFI_IFACES[@]} -eq 1 ]]; then
+        MANAGED="${WIFI_IFACES[0]}"
+        MONITOR="${MANAGED}mon"
+    else
+        echo "Available wireless interfaces:"
+        local i=1
+        for iface in "${WIFI_IFACES[@]}"; do echo "  $i) $iface"; ((i++)); done
+        echo "Select interface number (Enter=1):"
+        read -r SEL; [[ -z "$SEL" ]] && SEL=1
+        MANAGED="${WIFI_IFACES[$((SEL-1))]:-${WIFI_IFACES[0]}}"
+        MONITOR="${MANAGED}mon"
+    fi
+    WLANN=${MANAGED}; WLANNM="$MONITOR"
+    export MANAGED MONITOR WLANN WLANNM
+    echo ${MANAGED} > "$LPATH/wlan.txt"
+    echo ${MONITOR} > "$LPATH/wlanmon.txt"
+}
+export -f pick_wifi_interface
+
+# 5. MONITOR MODE (airmon-ng OR iw fallback)
+function start_monitor_mode {
+    local iface="${1:-$WLANN}"
+    echo "Killing conflicting processes..."
+    if command -v airmon-ng &>/dev/null; then
+        airmon-ng check kill &>/dev/null
+    else
+        for proc in wpa_supplicant NetworkManager dhclient avahi-daemon; do
+            pkill -x "$proc" 2>/dev/null
+        done
+    fi
+    echo "Starting monitor mode on $iface..."
+    if command -v airmon-ng &>/dev/null; then
+        local result; result=$(airmon-ng start "$iface" 2>&1)
+        local mon_iface
+        mon_iface=$(echo ${result} | grep -oP "(?<=on \[phy\d+\])[^\)\s]+" | head -1)
+        [[ -z ${mon_iface} ]] && mon_iface=$(echo ${result} | grep -oP "\w+mon" | head -1)
+        [[ -z ${mon_iface} ]] && mon_iface="${iface}mon"
+    else
+        ip link set "$iface" down
+        iw dev "$iface" set type monitor
+        ip link set "$iface" up
+        local mon_iface="$iface"
+    fi
+    WLANNM=${mon_iface}; MONITOR="$mon_iface"
+    export WLANNM MONITOR
+    echo ${WLANNM} > "$LPATH/wlanmon.txt"
+}
+export -f start_monitor_mode
+
+function stop_monitor_mode {
+    local mon_iface="${1:-$WLANNM}"
+    local base_iface="${2:-$WLANN}"
+    echo "Stopping monitor mode on $mon_iface..."
+    if command -v airmon-ng &>/dev/null; then
+        airmon-ng stop "$mon_iface" &>/dev/null
+    else
+        ip link set "$mon_iface" down 2>/dev/null
+        iw dev "$mon_iface" set type managed 2>/dev/null || true
+        ip link set "$base_iface" down 2>/dev/null
+        iw dev "$base_iface" set type managed 2>/dev/null || true
+        ip link set "$base_iface" up 2>/dev/null
+    fi
+    systemctl start NetworkManager 2>/dev/null || service network-manager start 2>/dev/null || true
+}
+export -f stop_monitor_mode
+
+# ──────────────────────────────────────────────────────────
+#  END PORTABILITY LAYER
+# ──────────────────────────────────────────────────────────
+RP=")"
+
 #############DEFAULTS###############
 #setting yellow-start 
 YS="\e[1;33m"
@@ -7,18 +214,18 @@ CE="\e[0m"
 #setting red-start
 RS="\e[1;31m"
 #setting frequent stings
-YNYES="("$YS"y"$CE"/"$YS"n"$CE")("$YS"Enter"$CE"=yes)"
-YNNO="("$YS"y"$CE"/"$YS"n"$CE")("$YS"Enter"$CE"=no)"
-YNONLY="("$YS"y"$CE"/"$YS"n"$CE")"
-PAKT="Press "$YS"any key$CE to"
-PAKTC="Press "$YS"any key$CE to continue..."
-PAKTGB="Press "$YS"any key$CE to go back..."
+YNYES="(${YS}y${CE}/${YS}n"\$CE"${RP}(${YS}Enter${CE}=yes)"
+YNNO="(${YS}y${CE}/${YS}n"\$CE"${RP}(${YS}Enter${CE}=no)"
+YNONLY="(${YS}y${CE}/${YS}n"\$CE"${RP}"
+PAKT="Press ${YS}any key$CE to"
+PAKTC="Press ${YS}any key$CE to continue..."
+PAKTGB="Press ${YS}any key$CE to go back..."
 
 ####################################
 printf '\033]2;REAVER\a' &&
-WLANNM=$(cat /root/lscript/wlanmon.txt)
+WLANNM=$(cat "$LPATH/wlanmon.txt")
 export WLANNM
-if [[ "$GLV" = "2" ]]
+if [[ ${GLV} = "2" ]]
 then
 	echo -e "Please note that you need a very good signal for this to work."
 	sleep 3
@@ -26,12 +233,12 @@ then
 	sleep 1
 	clear
 	reaver -i $WLANNM -b $BSSIDT -d $DELT -S -N -c $CHANT -vv 
-	echo -e "$PAKTC" 
+	echo -e ${PAKTC} 
 	read
-elif [[ "$GLV" = "3" ]]
+elif [[ ${GLV} = "3" ]]
 then
 	reaver -i $WLANNM -b $BSSIDT -p $WPST -vv
-	echo -e "$PAKTC"
+	echo -e ${PAKTC}
 	read
 
 fi
