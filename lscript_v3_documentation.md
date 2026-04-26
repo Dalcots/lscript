@@ -180,4 +180,4 @@ sudo bash /bin/lscript/lzsc
 ## Credits
 
 **Original author:** Aris Melachroinos — [github.com/arismelachroinos/lscript](https://github.com/arismelachroinos/lscript)  
-**Modernization, bug fixes & documentation:** Dalcots
+**Modernization, bug fixes & documentation:** [github.com/Dalcots](https://github.com/Dalcots)
